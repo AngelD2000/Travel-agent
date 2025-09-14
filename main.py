@@ -1,9 +1,9 @@
 import os
-from tarfile import data_filter
 from dotenv import load_dotenv
 from openai import OpenAI
 import requests
 from langchain_core.tools import tool
+import json
 
 load_dotenv()
 
@@ -44,19 +44,68 @@ def get_travel_agent_response(user_input, conversation_history):
         "role": "user",
         "content": user_input
     })
+    
+    # First API call to get LLM response (potentially with tool calls)
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=conversation_history,
         tools=get_tools()
     )
 
-    assistant_message = response.choices[0].message.content
+    message = response.choices[0].message
+    
+    # Add the assistant's message to conversation history
     conversation_history.append({
-        "role":"assistant",
-        "content":assistant_message
+        "role": "assistant",
+        "content": message.content,
+        "tool_calls": message.tool_calls
     })
 
-    print("Assistant: ", assistant_message)
+    # Check if the LLM wants to call tools
+    if message.tool_calls:
+        print("Assistant is calling tools...")
+        
+        # Add tool results to conversation
+        for tool_call in message.tool_calls:
+            function_name = tool_call.function.name
+            function_args = json.loads(tool_call.function.arguments)
+            
+            print(f"Calling {function_name} with args: {function_args}")
+            
+            # Execute the appropriate tool
+            if function_name == "get_weather":
+                tool_result = get_weather.invoke(function_args)
+            elif function_name == "get_flight_and_hotel_information":
+                tool_result = get_flight_and_hotel_information.invoke(function_args)
+            else:
+                tool_result = f"Unknown function: {function_name}"
+            
+            print(f"Tool result: {tool_result}")
+            
+            # Add tool result to conversation
+            conversation_history.append({
+                "role": "tool",
+                "content": str(tool_result),
+                "tool_call_id": tool_call.id
+            })
+        
+        # Make a second API call with the tool results
+        second_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=conversation_history,
+            tools=get_tools()
+        )
+        
+        final_message = second_response.choices[0].message.content
+        conversation_history.append({
+            "role": "assistant",
+            "content": final_message
+        })
+        
+        print("Assistant: ", final_message)
+    else:
+        # No tool calls, just regular response
+        print("Assistant: ", message.content)
 
     return conversation_history
 
@@ -184,10 +233,6 @@ if __name__ == "__main__":
       - Add weather tool to the agent DONE
       - Agent is able to understand common short form of city names
     - Serp API for flight and hotel bookings DONE
-* BUG: LLM errored out when asking for temperature or searches -> Need to do more things
-    -> Maybe write a parser? 
-    -> Handled by llm?
-
 * Try Langgraph 
 * Add a UI 
 """
