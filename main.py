@@ -227,12 +227,6 @@ if __name__ == "__main__":
 
 """
 #TODO: 
-* More natual conversations -- memory summarizer prompt 
-* Add tools to the agent
-    - Weather API for getting the weather of a city
-      - Add weather tool to the agent DONE
-      - Agent is able to understand common short form of city names
-    - Serp API for flight and hotel bookings DONE
 * Try Langgraph 
 * Add a UI 
 """
