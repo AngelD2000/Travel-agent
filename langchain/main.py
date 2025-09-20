@@ -70,9 +70,37 @@ def get_weather(city: str) -> str:
     else:
         return f"Error: {response.status_code}"
 
+def get_flight_and_hotel_information(query: str) -> str:
+
+    """Get serp api"""
+    serp_api_key = os.getenv("SERP_API_KEY")
+
+    if(serp_api_key is None):
+        return "Error: SERP API key is not set"
+    else:
+        print("SERP API key: ", serp_api_key)
+    
+    base_url = "https://serpapi.com/search"
+
+    search_params = {
+        "engine":"google",
+        "google_domain":"google.com",
+        "hl":"en",
+        "gl":"us",
+        "q": query,
+        "api_key": serp_api_key
+    }
+
+    response = requests.get(base_url, params=search_params)
+
+    if(response.status_code == 200):
+        return response.content
+    else:
+        return f"Error, response: {response}"
+
 agent = create_react_agent(
     model=model,  
-    tools=[get_weather],  
+    tools=[get_weather, get_flight_and_hotel_information],  
     prompt=system_prompt,
     checkpointer=memory
 )
